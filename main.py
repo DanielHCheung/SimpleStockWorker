@@ -10,7 +10,8 @@ def export_data(strategy_instance):
         "regimes": strategy_instance.track_regime,
         "qqq": strategy_instance.track_qqq
     }
-
+    
+    os.makedirs('data', exist_ok=True)
     with open('data/report_data.json', 'w') as f:
         json.dump(data, f)
 
