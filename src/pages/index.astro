@@ -325,7 +325,7 @@
       <div class="card-sub">Market State</div>
     </div>
     <div class="card">
-      <div class="card-label">vs QQQ</div>
+      <div class="card-label" id="label-vs-benchmark">vs Benchmark</div>
       <div class="card-value" id="stat-vs-qqq">—</div>
       <div class="card-sub">Alpha (normalised)</div>
     </div>
@@ -353,10 +353,10 @@
   <!-- NAV CHART -->
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title">NAV vs QQQ — Normalised to 100</span>
+      <span class="panel-title" id="nav-panel-title">NAV vs Benchmark — Normalised to 100</span>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>Strategy</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--muted); border-top: 1px dashed var(--muted); height:0"></div>QQQ</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--muted); border-top: 1px dashed var(--muted); height:0"></div><span id="legend-benchmark-label">Benchmark</span></div>
       </div>
     </div>
     <div class="panel-body">
@@ -471,16 +471,21 @@
   }
 
   function render(data) {
-    const { dates, nav, regimes, qqq } = data;
+    const { dates, nav, regimes } = data;
+    // Generic reference series: falls back to "benchmark"/"BENCHMARK" if a
+    // strategy's JSON predates this field, but normally comes straight from
+    // config.benchmark_ticker via main.py.
+    const benchmark = data.benchmark || [];
+    const benchmarkTicker = data.benchmark_ticker || 'Benchmark';
 
     // ── STATS ──
     const startNav = nav[0], endNav = nav[nav.length - 1];
     const pnl = endNav - startNav;
     const pnlPct = (pnl / startNav) * 100;
 
-    const startQqq = qqq[0], endQqq = qqq[qqq.length - 1];
-    const qqqReturn = ((endQqq - startQqq) / startQqq) * 100;
-    const alpha = pnlPct - qqqReturn;
+    const startBenchmark = benchmark[0], endBenchmark = benchmark[benchmark.length - 1];
+    const benchmarkReturn = ((endBenchmark - startBenchmark) / startBenchmark) * 100;
+    const alpha = pnlPct - benchmarkReturn;
 
     const currentRegime = [...regimes].reverse().find(r => r !== null) || '—';
 
@@ -491,6 +496,7 @@
     const pnlCard = document.getElementById('card-pnl');
     pnlEl.textContent = (pnl >= 0 ? '+$' : '-$') + fmt(Math.abs(pnl));
     pnlEl.className = 'card-value ' + (pnl >= 0 ? 'pos' : 'neg');
+    pnlCard.classList.remove('accent-green', 'accent-red');
     pnlCard.classList.add(pnl >= 0 ? 'accent-green' : 'accent-red');
     document.getElementById('stat-pnl-pct').textContent =
       (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%';
@@ -500,6 +506,10 @@
       dates[0] + ' → ' + dates[dates.length - 1];
 
     document.getElementById('stat-regime').textContent = currentRegime;
+
+    document.getElementById('label-vs-benchmark').textContent = `vs ${benchmarkTicker}`;
+    document.getElementById('nav-panel-title').textContent = `NAV vs ${benchmarkTicker} — Normalised to 100`;
+    document.getElementById('legend-benchmark-label').textContent = benchmarkTicker;
 
     const alphaEl = document.getElementById('stat-vs-qqq');
     alphaEl.textContent = (alpha >= 0 ? '+' : '') + alpha.toFixed(2) + '%';
@@ -528,7 +538,7 @@
     // ── CHART ──
     const norm = arr => arr.map(v => v / arr[0] * 100);
     const navN = norm(nav);
-    const qqqN = norm(qqq);
+    const benchmarkN = norm(benchmark);
 
     // Build regime background zones
     const regimePlugin = {
@@ -580,8 +590,8 @@
             }
           },
           {
-            label: 'QQQ',
-            data: qqqN,
+            label: benchmarkTicker,
+            data: benchmarkN,
             borderColor: '#556070',
             borderWidth: 1.5,
             borderDash: [4, 4],

@@ -32,6 +32,7 @@ _BASE_REGIME_PARAMS = {
     "boll_overbought": 0.9,
 }
 
+
 STRATEGIES = [
     {
         "id": "regime_v1",
@@ -43,6 +44,7 @@ STRATEGIES = [
         "enabled": True,
         "strategy_class": "RegimeSwitchingStrategy",
         "tickers": ["QQQ", "SQQQ", "TQQQ", "PSQ"],
+        "benchmark_ticker": "QQQ",   # reference line the NAV is compared against
         "start": "2019-01-01",
         "end": TODAY,
         "initial_cash": 100_000.0,
@@ -59,6 +61,7 @@ STRATEGIES = [
         "enabled": True,
         "strategy_class": "RegimeSwitchingStrategy",
         "tickers": ["QQQ", "SQQQ", "TQQQ", "PSQ"],
+        "benchmark_ticker": "QQQ",
         "start": "2019-01-01",
         "end": TODAY,
         "initial_cash": 100_000.0,
@@ -66,6 +69,24 @@ STRATEGIES = [
         "params": {
             **_BASE_REGIME_PARAMS,
             "trend_period": 100,
+        },
+    },
+    {
+        "id": "ridge_AAPL",
+        "name": "ridge AAPL",
+        "enabled": True,        # flip on when ready
+        "strategy_class": "RidgeRegressionStrategy",
+        "tickers": ["AAPL"],
+        "benchmark_ticker": "AAPL",
+        "start": "2015-01-01",
+        "end": TODAY,
+        "initial_cash": 100_000.0,
+        "commission": 0.0005,
+        "params": {
+            'train_window': 252,      # Rolling training window: past 252 trading days
+            'ridge_alpha': 1.0,       # L2 Regularization Penalty for the Ridge model
+            'cash_apy': 0.03,         # Idle-cash Annual Percentage Yield
+            'rebalance_days': 20,     # Rebalance frequency: retrain model and adjust positions every 20 days
         },
     },
     # {

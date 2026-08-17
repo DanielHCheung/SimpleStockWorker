@@ -11,6 +11,7 @@ PUBLIC_DATA_DIR = "public/data/strategies"
 
 def export_strategy_data(config, strategy_instance):
     """Write one strategy's timeseries to data/strategies/<id>.json and mirror to public/."""
+    benchmark_ticker = config.get("benchmark_ticker", config["tickers"][0])
     data = {
         "id": config["id"],
         "name": config["name"],
@@ -19,7 +20,11 @@ def export_strategy_data(config, strategy_instance):
         "dates": [d.isoformat() for d in strategy_instance.track_dates],
         "nav": strategy_instance.track_nav,
         "regimes": strategy_instance.track_regime,
-        "qqq": strategy_instance.track_qqq,
+        # Generic reference series + which ticker it actually is — not
+        # assumed to be QQQ. strategy_instance.track_benchmark is populated
+        # by whichever ticker the strategy config set as benchmark_ticker.
+        "benchmark_ticker": benchmark_ticker,
+        "benchmark": strategy_instance.track_benchmark,
     }
 
     os.makedirs(DATA_DIR, exist_ok=True)
