@@ -74,6 +74,61 @@
       margin: 0 auto;
     }
 
+    /* ── STRATEGY SWITCHER ── */
+    .strategy-bar {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+
+    .strategy-tab {
+      background: var(--surface);
+      border: none;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      padding: 12px 18px;
+      cursor: pointer;
+      white-space: nowrap;
+      position: relative;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+
+    .strategy-tab:hover {
+      color: var(--text);
+      background: #101720;
+    }
+
+    .strategy-tab.active {
+      color: var(--accent);
+      background: #12161c;
+    }
+
+    .strategy-tab.active::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .strategy-tab .tab-nav {
+      display: block;
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .strategy-tab.active .tab-nav {
+      color: var(--text);
+    }
+
     /* ── STAT CARDS ── */
     .cards {
       display: grid;
@@ -244,6 +299,9 @@
 </header>
 
 <main>
+  <!-- STRATEGY SWITCHER -->
+  <div class="strategy-bar" id="strategy-bar"></div>
+
   <!-- STAT CARDS -->
   <div class="cards" id="cards">
     <div class="card accent-blue">
@@ -322,16 +380,91 @@
   tick();
   setInterval(tick, 1000);
 
-  // Load data
-  fetch('./data/report_data.json')
+  // ── STRATEGY STATE ──
+  let manifest = null;
+  let currentChart = null;
+  let currentId = null;
+  const strategyCache = {}; // id -> data, avoids refetching on tab switch
+
+  // Allow deep-linking / bookmarking a strategy: ?strategy=<id>
+  function getRequestedId() {
+    return new URLSearchParams(window.location.search).get('strategy');
+  }
+
+  function setRequestedId(id) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('strategy', id);
+    window.history.replaceState({}, '', url);
+  }
+
+  // Load manifest, then the initially-selected strategy
+  fetch('./data/manifest.json')
     .then(r => r.json())
-    .then(data => {
-      document.getElementById('loading').style.display = 'none';
-      render(data);
+    .then(m => {
+      manifest = m;
+      if (!manifest.strategies || manifest.strategies.length === 0) {
+        throw new Error('No strategies in manifest');
+      }
+      renderStrategyBar();
+      const requested = getRequestedId();
+      const initial = manifest.strategies.find(s => s.id === requested) || manifest.strategies[0];
+      loadStrategy(initial.id);
     })
     .catch(() => {
       document.getElementById('loading').textContent = 'DATA UNAVAILABLE';
     });
+
+  function renderStrategyBar() {
+    const bar = document.getElementById('strategy-bar');
+    bar.innerHTML = '';
+    manifest.strategies.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'strategy-tab';
+      btn.dataset.id = s.id;
+      const nav = s.final_nav != null ? '$' + fmt(s.final_nav) : '—';
+      btn.innerHTML = `${s.name}<span class="tab-nav">${nav}</span>`;
+      btn.addEventListener('click', () => loadStrategy(s.id));
+      bar.appendChild(btn);
+    });
+  }
+
+  function setActiveTab(id) {
+    document.querySelectorAll('.strategy-tab').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === id);
+    });
+  }
+
+  function loadStrategy(id) {
+    if (id === currentId) return;
+    setActiveTab(id);
+    setRequestedId(id);
+    currentId = id;
+
+    if (strategyCache[id]) {
+      render(strategyCache[id]);
+      return;
+    }
+
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('loading').textContent = '';
+    const span = document.createElement('span');
+    span.textContent = 'LOADING DATA';
+    const blink = document.createElement('span');
+    blink.className = 'blink';
+    blink.textContent = '_';
+    document.getElementById('loading').append(span, blink);
+
+    fetch(`./data/strategies/${id}.json`)
+      .then(r => r.json())
+      .then(data => {
+        strategyCache[id] = data;
+        document.getElementById('loading').style.display = 'none';
+        render(data);
+      })
+      .catch(() => {
+        document.getElementById('loading').textContent = 'DATA UNAVAILABLE';
+      });
+  }
 
   function fmt(n) {
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -374,6 +507,7 @@
 
     // ── REGIME BAR ──
     const bar = document.getElementById('regime-bar');
+    bar.innerHTML = '';
     regimes.forEach(r => {
       const seg = document.createElement('div');
       seg.className = 'regime-segment';
@@ -421,7 +555,11 @@
       }
     };
 
-    new Chart(document.getElementById('nav-chart'), {
+    if (currentChart) {
+      currentChart.destroy();
+    }
+
+    currentChart = new Chart(document.getElementById('nav-chart'), {
       type: 'line',
       plugins: [regimePlugin],
       data: {
