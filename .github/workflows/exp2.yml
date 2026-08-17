@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-python@v4
         with: {python-version: '3.10'}
       - name: Install dependencies
-        run: pip install pandas matplotlib backtrader yfinance requests
+        run: pip install pandas matplotlib backtrader yfinance requests scikit-learn
       - name: Run Quant Engine
         env:
           TG_TOKEN: ${{ secrets.TG_TOKEN }}
