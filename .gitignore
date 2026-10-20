@@ -25,3 +25,9 @@ env/
 
 .DS_Store
 Thumbs.db
+
+# Frontend dependencies and generated Astro output
+node_modules/
+dist/
+.astro/
+src/env.d.ts
