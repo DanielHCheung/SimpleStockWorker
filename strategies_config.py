@@ -92,15 +92,25 @@ STRATEGIES = [
     {
         "id": "QQQTacticalGBStrategy",
         "name": "QQQTacticalGBStrategy",
-        "enabled": True,        # flip on when ready
+        "enabled": True,
         "strategy_class": "QQQTacticalGBStrategy",
         "tickers": ["QQQ"],
         "start": "2020-01-01",
         "end": TODAY,
         "initial_cash": 100_000.0,
         "commission": 0.0005,
-        "params": {"some_param": 10},
-    },
+        "params": {
+            "train_window": 504,
+            "rebalance_days": 10,
+            "forecast_horizon": 10,
+            "cash_apy": 0.03,
+            "target_vol": 0.18,
+            "pred_zero": -0.005,
+            "pred_full": 0.015,
+            "max_step": 0.50,
+            "signal_ticker": "QQQ",
+        },
+    }
     # {
     #     "id": "my_new_strategy",
     #     "name": "My New Strategy",
