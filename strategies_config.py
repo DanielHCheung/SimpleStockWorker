@@ -89,6 +89,18 @@ STRATEGIES = [
             'rebalance_days': 20,     # Rebalance frequency: retrain model and adjust positions every 20 days
         },
     },
+    {
+        "id": "QQQTacticalGBStrategy",
+        "name": "QQQTacticalGBStrategy",
+        "enabled": True,        # flip on when ready
+        "strategy_class": "QQQTacticalGBStrategy",
+        "tickers": ["QQQ"],
+        "start": "2020-01-01",
+        "end": TODAY,
+        "initial_cash": 100_000.0,
+        "commission": 0.0005,
+        "params": {"some_param": 10},
+    },
     # {
     #     "id": "my_new_strategy",
     #     "name": "My New Strategy",
