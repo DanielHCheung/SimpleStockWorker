@@ -70,9 +70,10 @@ class QQQTacticalGBStrategy(bt.Strategy):
         self.ema200 = bt.indicators.ExponentialMovingAverage(self.asset.close, period=200)
         self.sma20 = bt.indicators.SimpleMovingAverage(self.asset.close, period=20)
 
-        # MACD (histogram is the usable part)
-        self.macd = bt.indicators.MACD(self.asset.close,
-                                       period_me1=12, period_me2=26, period_signal=9)
+        # MACD histogram: plain MACD only exposes ('macd', 'signal');
+        # MACDHisto adds the 'histo' line this strategy uses.
+        self.macd = bt.indicators.MACDHisto(self.asset.close,
+                                            period_me1=12, period_me2=26, period_signal=9)
 
         # Momentum
         self.ret_1d = bt.indicators.PercentChange(self.asset.close, period=1)
@@ -138,7 +139,7 @@ class QQQTacticalGBStrategy(bt.Strategy):
         close = arr(self.asset.close)
         ema12, ema26 = arr(self.ema12), arr(self.ema26)
         ema50, ema200 = arr(self.ema50), arr(self.ema200)
-        macd_hist = arr(self.macd.macdhisto)
+        macd_hist = arr(self.macd.histo)
         boll_top, boll_bot, boll_mid = arr(self.boll.top), arr(self.boll.bot), arr(self.boll.mid)
 
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -213,7 +214,7 @@ class QQQTacticalGBStrategy(bt.Strategy):
             'ret_1d': float(self.ret_1d[0]), 'mom_5d': float(self.mom_5d[0]),
             'mom_20d': float(self.mom_20d[0]), 'mom_60d': float(self.mom_60d[0]),
             'rsi_norm': float(self.rsi[0]) / 100.0,
-            'macd_hist_norm': float(self.macd.macdhisto[0]) / close[last],
+            'macd_hist_norm': float(self.macd.histo[0]) / close[last],
             'boll_pctb': (close[last] - boll_bot[last]) / max(boll_top[last] - boll_bot[last], 1e-9),
             'boll_bw': (boll_top[last] - boll_bot[last]) / boll_mid[last],
             'vol_20d': float(self.vol_20d[0]),
