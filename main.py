@@ -12,11 +12,19 @@ PUBLIC_DATA_DIR = "public/data/strategies"
 def export_strategy_data(config, strategy_instance):
     """Write one strategy's timeseries to data/strategies/<id>.json and mirror to public/."""
     benchmark_ticker = config.get("benchmark_ticker", config["tickers"][0])
+    params = config.get("params", {})
+    # Keep the non-actionable indicator/model warm-up out of the dashboard.
+    # This is metadata only; the backtest still runs over the complete history.
+    warmup_days = max(
+        params.get("trend_period", 0),
+        params.get("train_window", 0) + params.get("forecast_horizon", 0) + 5,
+    )
     data = {
         "id": config["id"],
         "name": config["name"],
         "description": config.get("description", ""),
-        "params": config.get("params", {}),
+        "params": params,
+        "warmup_days": warmup_days,
         "dates": [d.isoformat() for d in strategy_instance.track_dates],
         "nav": strategy_instance.track_nav,
         "regimes": strategy_instance.track_regime,

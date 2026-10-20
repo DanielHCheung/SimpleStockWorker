@@ -626,17 +626,28 @@
     return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function getWarmupDays(data) {
+    if (Number.isFinite(data.warmup_days)) return Math.max(0, data.warmup_days);
+    const params = data.params || {};
+    return Math.max(
+      params.trend_period || 0,
+      (params.train_window || 0) + (params.forecast_horizon || 0) + 5
+    );
+  }
+
   function render(data) {
     if (!data) return;
     currentData = data;
     const rawRegimes = data.regimes || [];
     // Do not plot the leading model warm-up period. It contains no actionable
     // signal and makes ML strategies look artificially flat.
+    const warmupDays = getWarmupDays(data);
     let firstSignal = rawRegimes.findIndex((state, index) =>
       state !== null && state !== undefined &&
       (index === 0 || state !== rawRegimes[0])
     );
     if (firstSignal < 0) firstSignal = 0;
+    firstSignal = Math.min(warmupDays, data.dates.length - 1, Math.max(firstSignal, warmupDays));
     const fromInput = document.getElementById('date-from').value;
     const toInput = document.getElementById('date-to').value;
     const inputStart = fromInput || data.dates[firstSignal];
@@ -667,20 +678,24 @@
     const pnlPct = (pnl / startNav) * 100;
 
     const benchmarkSlice = indexes.map(i => benchmark[i]);
+    const hasBenchmark = benchmarkSlice.length === nav.length &&
+      benchmarkSlice.every(value => Number.isFinite(value) && value > 0);
     const startBenchmark = benchmarkSlice[0], endBenchmark = benchmarkSlice[benchmarkSlice.length - 1];
-    const benchmarkReturn = ((endBenchmark - startBenchmark) / startBenchmark) * 100;
-    const alpha = pnlPct - benchmarkReturn;
+    const benchmarkReturn = hasBenchmark ? ((endBenchmark - startBenchmark) / startBenchmark) * 100 : null;
+    const alpha = benchmarkReturn === null ? null : pnlPct - benchmarkReturn;
 
     const currentRegime = [...regimes].reverse().find(r => r !== null && r !== undefined) || '—';
     const strategyReturns = nav.slice(1).map((v, i) => v / nav[i] - 1);
-    const benchmarkReturns = benchmarkSlice.slice(1).map((v, i) => v / benchmarkSlice[i] - 1);
+    const benchmarkReturns = hasBenchmark
+      ? benchmarkSlice.slice(1).map((v, i) => v / benchmarkSlice[i] - 1)
+      : [];
     const mean = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
     const benchmarkMean = mean(benchmarkReturns);
-    const covariance = mean(strategyReturns.map((value, i) =>
+    const covariance = hasBenchmark ? mean(strategyReturns.map((value, i) =>
       (value - mean(strategyReturns)) * (benchmarkReturns[i] - benchmarkMean)
-    ));
+    )) : 0;
     const benchmarkVariance = mean(benchmarkReturns.map(value => (value - benchmarkMean) ** 2));
-    const beta = benchmarkVariance ? covariance / benchmarkVariance : 0;
+    const beta = benchmarkVariance ? covariance / benchmarkVariance : null;
     let peak = nav[0];
     const drawdowns = nav.map(value => {
       peak = Math.max(peak, value);
@@ -715,9 +730,9 @@
     document.getElementById('legend-benchmark-label').textContent = benchmarkTicker;
 
     const alphaEl = document.getElementById('stat-vs-qqq');
-    alphaEl.textContent = (alpha >= 0 ? '+' : '') + alpha.toFixed(2) + '%';
-    alphaEl.className = 'card-value ' + (alpha >= 0 ? 'pos' : 'neg');
-    document.getElementById('stat-beta').textContent = beta.toFixed(2);
+    alphaEl.textContent = alpha === null ? '—' : (alpha >= 0 ? '+' : '') + alpha.toFixed(2) + '%';
+    alphaEl.className = alpha === null ? 'card-value' : 'card-value ' + (alpha >= 0 ? 'pos' : 'neg');
+    document.getElementById('stat-beta').textContent = beta === null ? '—' : beta.toFixed(2);
     document.getElementById('stat-drawdown').textContent = maxDrawdown.toFixed(2) + '%';
     document.getElementById('stat-sharpe').textContent = sharpe.toFixed(2);
 
@@ -751,7 +766,7 @@
     // ── CHART ──
     const norm = arr => arr.map(v => v / arr[0] * 100);
     const navN = norm(nav);
-    const benchmarkN = norm(benchmarkSlice);
+    const benchmarkN = hasBenchmark ? norm(benchmarkSlice) : [];
 
     // Build strategy-state background zones without assuming A/B labels.
     const stateFills = [
@@ -804,7 +819,7 @@
               above: 'rgba(77,166,255,0.05)',
             }
           },
-          {
+          ...(hasBenchmark ? [{
             label: benchmarkTicker,
             data: benchmarkN,
             borderColor: '#556070',
@@ -813,7 +828,7 @@
             pointRadius: 0,
             pointHoverRadius: 3,
             tension: 0.2,
-          }
+          }] : [])
         ]
       },
       options: {
