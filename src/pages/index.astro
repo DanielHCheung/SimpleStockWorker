@@ -69,32 +69,71 @@
 
     /* ── LAYOUT ── */
     main {
-      padding: 20px 24px;
-      max-width: 1400px;
-      margin: 0 auto;
+      display: flex;
+      min-height: calc(100vh - 48px);
     }
 
-    /* ── STRATEGY SWITCHER ── */
-    .strategy-bar {
+    .sidebar {
+      width: 260px;
+      flex: 0 0 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 14px;
+      transition: width 0.2s ease, flex-basis 0.2s ease;
+    }
+
+    .sidebar.collapsed {
+      width: 58px;
+      flex-basis: 58px;
+    }
+
+    .sidebar-head {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .sidebar-title {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .sidebar.collapsed .sidebar-title,
+    .sidebar.collapsed .strategy-tab .tab-text,
+    .sidebar.collapsed .strategy-tab .tab-nav {
+      display: none;
+    }
+
+    .collapse-btn {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 5px 8px;
+      font-family: var(--mono);
+    }
+
+    .strategy-list {
+      display: grid;
       gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      margin-bottom: 20px;
-      overflow-x: auto;
     }
 
     .strategy-tab {
-      background: var(--surface);
-      border: none;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
       color: var(--muted);
       font-family: var(--mono);
       font-size: 11px;
       letter-spacing: 0.04em;
-      padding: 12px 18px;
+      padding: 12px 10px;
       cursor: pointer;
-      white-space: nowrap;
+      white-space: normal;
       position: relative;
       transition: color 0.15s ease, background 0.15s ease;
     }
@@ -107,6 +146,7 @@
     .strategy-tab.active {
       color: var(--accent);
       background: #12161c;
+      border-color: var(--border2);
     }
 
     .strategy-tab.active::after {
@@ -124,6 +164,62 @@
       margin-top: 2px;
       letter-spacing: 0.02em;
     }
+
+    .content {
+      flex: 1;
+      min-width: 0;
+      padding: 20px 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .date-controls {
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      margin-bottom: 20px;
+    }
+
+    .date-field {
+      display: grid;
+      gap: 4px;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    .date-field input {
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      padding: 5px 7px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .date-reset {
+      color: var(--accent);
+      background: transparent;
+      border: 1px solid var(--border2);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .state-legend {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .state-legend .legend-item { white-space: nowrap; }
 
     .strategy-tab.active .tab-nav {
       color: var(--text);
@@ -232,6 +328,9 @@
       padding: 16px 18px;
     }
 
+    .chart-wrap { position: relative; height: 280px; }
+    .drawdown-wrap { position: relative; height: 180px; }
+
     /* ── REGIME BAR ── */
     .regime-bar-wrap {
       display: flex;
@@ -287,6 +386,14 @@
     @keyframes blink { 50% { opacity: 0; } }
 
     canvas { display: block; }
+
+    @media (max-width: 760px) {
+      .sidebar { width: 58px; flex-basis: 58px; }
+      .sidebar-title, .strategy-tab .tab-text, .strategy-tab .tab-nav { display: none; }
+      .content { padding: 14px; }
+      header { padding: 0 14px; }
+      .brand { font-size: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -299,9 +406,20 @@
 </header>
 
 <main>
-  <!-- STRATEGY SWITCHER -->
-  <div class="strategy-bar" id="strategy-bar"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-title">Strategies</span>
+      <button class="collapse-btn" id="collapse-sidebar" type="button" aria-label="Collapse strategy menu">‹</button>
+    </div>
+    <div class="strategy-list" id="strategy-bar"></div>
+  </aside>
 
+  <section class="content">
+  <div class="date-controls">
+    <label class="date-field">From <input id="date-from" type="date" /></label>
+    <label class="date-field">To <input id="date-to" type="date" /></label>
+    <button class="date-reset" id="date-reset" type="button">FULL RANGE</button>
+  </div>
   <!-- STAT CARDS -->
   <div class="cards" id="cards">
     <div class="card accent-blue">
@@ -320,26 +438,37 @@
       <div class="card-sub" id="stat-period">Period</div>
     </div>
     <div class="card">
-      <div class="card-label">Current Regime</div>
+      <div class="card-label">Current State</div>
       <div class="card-value" id="stat-regime">—</div>
-      <div class="card-sub">Market State</div>
+      <div class="card-sub">Strategy Signal</div>
     </div>
     <div class="card">
       <div class="card-label" id="label-vs-benchmark">vs Benchmark</div>
       <div class="card-value" id="stat-vs-qqq">—</div>
       <div class="card-sub">Alpha (normalised)</div>
     </div>
+    <div class="card accent-blue">
+      <div class="card-label">Beta</div>
+      <div class="card-value" id="stat-beta">—</div>
+      <div class="card-sub">vs Benchmark</div>
+    </div>
+    <div class="card accent-red">
+      <div class="card-label">Max Drawdown</div>
+      <div class="card-value neg" id="stat-drawdown">—</div>
+      <div class="card-sub">Peak to trough</div>
+    </div>
+    <div class="card accent-amber">
+      <div class="card-label">Sharpe Ratio</div>
+      <div class="card-value" id="stat-sharpe">—</div>
+      <div class="card-sub">Annualised</div>
+    </div>
   </div>
 
-  <!-- REGIME TIMELINE -->
+  <!-- STRATEGY STATE TIMELINE -->
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title">Regime Timeline</span>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Regime A</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Regime B</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--border2)"></div>Neutral</div>
-      </div>
+      <span class="panel-title">Strategy State Timeline</span>
+      <div class="legend state-legend" id="state-legend"></div>
     </div>
     <div class="panel-body">
       <div class="regime-bar-wrap" id="regime-bar"></div>
@@ -360,9 +489,19 @@
       </div>
     </div>
     <div class="panel-body">
-      <canvas id="nav-chart" height="75"></canvas>
+      <div class="chart-wrap"><canvas id="nav-chart"></canvas></div>
     </div>
   </div>
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Drawdown</span>
+      <div class="legend"><div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Underwater from peak</div></div>
+    </div>
+    <div class="panel-body">
+      <div class="drawdown-wrap"><canvas id="drawdown-chart"></canvas></div>
+    </div>
+  </div>
+  </section>
 </main>
 
 <footer>
@@ -383,8 +522,10 @@
   // ── STRATEGY STATE ──
   let manifest = null;
   let currentChart = null;
+  let drawdownChart = null;
   let currentId = null;
   const strategyCache = {}; // id -> data, avoids refetching on tab switch
+  let currentData = null;
 
   // Allow deep-linking / bookmarking a strategy: ?strategy=<id>
   function getRequestedId() {
@@ -406,6 +547,19 @@
         throw new Error('No strategies in manifest');
       }
       renderStrategyBar();
+      document.getElementById('collapse-sidebar').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('collapsed');
+        document.getElementById('collapse-sidebar').textContent =
+          sidebar.classList.contains('collapsed') ? '›' : '‹';
+      });
+      document.getElementById('date-from').addEventListener('change', () => render(currentData));
+      document.getElementById('date-to').addEventListener('change', () => render(currentData));
+      document.getElementById('date-reset').addEventListener('click', () => {
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        render(currentData);
+      });
       const requested = getRequestedId();
       const initial = manifest.strategies.find(s => s.id === requested) || manifest.strategies[0];
       loadStrategy(initial.id);
@@ -422,7 +576,7 @@
       btn.className = 'strategy-tab';
       btn.dataset.id = s.id;
       const nav = s.final_nav != null ? '$' + fmt(s.final_nav) : '—';
-      btn.innerHTML = `${s.name}<span class="tab-nav">${nav}</span>`;
+      btn.innerHTML = `<span class="tab-text">${s.name}</span><span class="tab-nav">${nav}</span>`;
       btn.addEventListener('click', () => loadStrategy(s.id));
       bar.appendChild(btn);
     });
@@ -439,6 +593,8 @@
     setActiveTab(id);
     setRequestedId(id);
     currentId = id;
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
 
     if (strategyCache[id]) {
       render(strategyCache[id]);
@@ -471,7 +627,34 @@
   }
 
   function render(data) {
-    const { dates, nav, regimes } = data;
+    if (!data) return;
+    currentData = data;
+    const rawRegimes = data.regimes || [];
+    // Do not plot the leading model warm-up period. It contains no actionable
+    // signal and makes ML strategies look artificially flat.
+    let firstSignal = rawRegimes.findIndex((state, index) =>
+      state !== null && state !== undefined &&
+      (index === 0 || state !== rawRegimes[0])
+    );
+    if (firstSignal < 0) firstSignal = 0;
+    const fromInput = document.getElementById('date-from').value;
+    const toInput = document.getElementById('date-to').value;
+    const inputStart = fromInput || data.dates[firstSignal];
+    const startDate = inputStart > data.dates[firstSignal]
+      ? inputStart
+      : data.dates[firstSignal];
+    const endDate = toInput || data.dates[data.dates.length - 1];
+    document.getElementById('date-from').min = data.dates[firstSignal];
+    document.getElementById('date-from').max = data.dates[data.dates.length - 1];
+    document.getElementById('date-to').min = data.dates[firstSignal];
+    document.getElementById('date-to').max = data.dates[data.dates.length - 1];
+    const indexes = data.dates.map((date, index) => ({ date, index }))
+      .filter(item => item.date >= startDate && item.date <= endDate)
+      .map(item => item.index);
+    if (!indexes.length) return;
+    const dates = indexes.map(i => data.dates[i]);
+    const nav = indexes.map(i => data.nav[i]);
+    const regimes = indexes.map(i => rawRegimes[i]);
     // Generic reference series: falls back to "benchmark"/"BENCHMARK" if a
     // strategy's JSON predates this field, but normally comes straight from
     // config.benchmark_ticker via main.py.
@@ -483,11 +666,31 @@
     const pnl = endNav - startNav;
     const pnlPct = (pnl / startNav) * 100;
 
-    const startBenchmark = benchmark[0], endBenchmark = benchmark[benchmark.length - 1];
+    const benchmarkSlice = indexes.map(i => benchmark[i]);
+    const startBenchmark = benchmarkSlice[0], endBenchmark = benchmarkSlice[benchmarkSlice.length - 1];
     const benchmarkReturn = ((endBenchmark - startBenchmark) / startBenchmark) * 100;
     const alpha = pnlPct - benchmarkReturn;
 
-    const currentRegime = [...regimes].reverse().find(r => r !== null) || '—';
+    const currentRegime = [...regimes].reverse().find(r => r !== null && r !== undefined) || '—';
+    const strategyReturns = nav.slice(1).map((v, i) => v / nav[i] - 1);
+    const benchmarkReturns = benchmarkSlice.slice(1).map((v, i) => v / benchmarkSlice[i] - 1);
+    const mean = values => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+    const benchmarkMean = mean(benchmarkReturns);
+    const covariance = mean(strategyReturns.map((value, i) =>
+      (value - mean(strategyReturns)) * (benchmarkReturns[i] - benchmarkMean)
+    ));
+    const benchmarkVariance = mean(benchmarkReturns.map(value => (value - benchmarkMean) ** 2));
+    const beta = benchmarkVariance ? covariance / benchmarkVariance : 0;
+    let peak = nav[0];
+    const drawdowns = nav.map(value => {
+      peak = Math.max(peak, value);
+      return (value / peak - 1) * 100;
+    });
+    const maxDrawdown = Math.min(...drawdowns);
+    const volatility = strategyReturns.length > 1
+      ? Math.sqrt(mean(strategyReturns.map(value => (value - mean(strategyReturns)) ** 2)))
+      : 0;
+    const sharpe = volatility ? (mean(strategyReturns) / volatility) * Math.sqrt(252) : 0;
 
     document.getElementById('stat-nav').textContent = '$' + fmt(endNav);
     document.getElementById('stat-start').textContent = 'Start: $' + fmt(startNav);
@@ -514,18 +717,28 @@
     const alphaEl = document.getElementById('stat-vs-qqq');
     alphaEl.textContent = (alpha >= 0 ? '+' : '') + alpha.toFixed(2) + '%';
     alphaEl.className = 'card-value ' + (alpha >= 0 ? 'pos' : 'neg');
+    document.getElementById('stat-beta').textContent = beta.toFixed(2);
+    document.getElementById('stat-drawdown').textContent = maxDrawdown.toFixed(2) + '%';
+    document.getElementById('stat-sharpe').textContent = sharpe.toFixed(2);
 
-    // ── REGIME BAR ──
+    // ── STRATEGY STATE BAR ──
+    const states = [...new Set(regimes.filter(state => state !== null && state !== undefined))];
+    const stateColors = ['var(--green)', 'var(--red)', 'var(--blue)', 'var(--accent)', '#a78bfa', '#f97316'];
+    const stateColor = state => stateColors[Math.max(0, states.indexOf(state)) % stateColors.length];
+    const legend = document.getElementById('state-legend');
+    legend.innerHTML = states.map(state =>
+      `<div class="legend-item"><div class="legend-dot" style="background:${stateColor(state)}"></div>${state}</div>`
+    ).join('');
+    if (regimes.some(state => state === null || state === undefined)) {
+      legend.innerHTML += '<div class="legend-item"><div class="legend-dot" style="background:var(--border2)"></div>No signal</div>';
+    }
     const bar = document.getElementById('regime-bar');
     bar.innerHTML = '';
     regimes.forEach(r => {
       const seg = document.createElement('div');
       seg.className = 'regime-segment';
-      seg.style.background =
-        r === 'A' ? 'var(--green)' :
-        r === 'B' ? 'var(--red)' :
-        'var(--border2)';
-      seg.title = r || 'Neutral';
+      seg.style.background = r === null || r === undefined ? 'var(--border2)' : stateColor(r);
+      seg.title = r || 'No signal';
       bar.appendChild(seg);
     });
     document.getElementById('regime-start').textContent = dates[0];
@@ -538,9 +751,14 @@
     // ── CHART ──
     const norm = arr => arr.map(v => v / arr[0] * 100);
     const navN = norm(nav);
-    const benchmarkN = norm(benchmark);
+    const benchmarkN = norm(benchmarkSlice);
 
-    // Build regime background zones
+    // Build strategy-state background zones without assuming A/B labels.
+    const stateFills = [
+      'rgba(0,214,143,0.06)', 'rgba(255,77,109,0.06)',
+      'rgba(77,166,255,0.06)', 'rgba(245,166,35,0.06)',
+      'rgba(167,139,250,0.06)', 'rgba(249,115,22,0.06)'
+    ];
     const regimePlugin = {
       id: 'regimeBg',
       beforeDraw(chart) {
@@ -552,9 +770,7 @@
           const x0 = xScale.getPixelForValue(i - 0.5);
           const x1 = xScale.getPixelForValue(i + 0.5);
           ctx.save();
-          ctx.fillStyle = r === 'A'
-            ? 'rgba(0,214,143,0.06)'
-            : 'rgba(255,77,109,0.06)';
+          ctx.fillStyle = stateFills[Math.max(0, states.indexOf(r)) % stateFills.length];
           ctx.fillRect(
             Math.max(x0, chartArea.left), chartArea.top,
             Math.min(x1, chartArea.right) - Math.max(x0, chartArea.left),
@@ -565,9 +781,8 @@
       }
     };
 
-    if (currentChart) {
-      currentChart.destroy();
-    }
+    if (currentChart) currentChart.destroy();
+    if (drawdownChart) drawdownChart.destroy();
 
     currentChart = new Chart(document.getElementById('nav-chart'), {
       type: 'line',
@@ -643,6 +858,32 @@
             },
             grid: { color: '#1e2730' }
           }
+        }
+      }
+    });
+
+    drawdownChart = new Chart(document.getElementById('drawdown-chart'), {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [{
+          label: 'Drawdown',
+          data: drawdowns,
+          borderColor: '#ff4d6d',
+          backgroundColor: 'rgba(255,77,109,0.12)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.15,
+        }]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#556070', maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#1e2730' } },
+          y: { ticks: { color: '#556070', callback: value => value.toFixed(1) + '%' }, grid: { color: '#1e2730' } }
         }
       }
     });
